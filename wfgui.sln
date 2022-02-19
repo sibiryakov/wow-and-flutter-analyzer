@@ -1,0 +1,25 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio 15
+VisualStudioVersion = 15.0.27703.2018
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "wfgui", "wfgui.vcxproj", "{B6B2185F-EB11-468D-8FD0-C595EAA4968C}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Win32 = Debug|Win32
+		Release|Win32 = Release|Win32
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{B6B2185F-EB11-468D-8FD0-C595EAA4968C}.Debug|Win32.ActiveCfg = Debug|Win32
+		{B6B2185F-EB11-468D-8FD0-C595EAA4968C}.Debug|Win32.Build.0 = Debug|Win32
+		{B6B2185F-EB11-468D-8FD0-C595EAA4968C}.Release|Win32.ActiveCfg = Release|Win32
+		{B6B2185F-EB11-468D-8FD0-C595EAA4968C}.Release|Win32.Build.0 = Release|Win32
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {AB67F1EF-CB2C-46B9-ADC8-EBC955AC5A6C}
+	EndGlobalSection
+EndGlobal
