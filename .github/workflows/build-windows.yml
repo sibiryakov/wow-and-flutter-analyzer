@@ -38,15 +38,7 @@ jobs:
         run: |
           call "%ProgramFiles(x86)%\Microsoft Visual Studio\2022\BuildTools\Common7\Tools\VsDevCmd.bat" -arch=x86 -host_arch=x64
           if errorlevel 1 exit /b 1
-          echo VCINSTALLDIR=%VCINSTALLDIR%
           for /f "delims=" %%i in ('dir /b "%VCINSTALLDIR%Tools\MSVC"') do set VCTOOLSVER=%%i
-          echo VCTOOLSVER=%VCTOOLSVER%
-          dir "%VCINSTALLDIR%Tools\MSVC\%VCTOOLSVER%\atlmfc\lib\x86\mfc140.lib"
-          echo ---- looking for cl.exe ----
-          dir /s /b "%VCINSTALLDIR%Tools\MSVC\%VCTOOLSVER%\bin\cl.exe"
-          echo ---- PATH ----
-          echo %PATH%
-          where cl.exe
           msbuild wfgui.vcxproj /p:Configuration=Release /p:Platform=Win32 /p:PlatformToolset=v143 /p:VCToolsVersion=%VCTOOLSVER% /p:WindowsTargetPlatformVersion=10.0 /m
 
       - name: Upload build artifact
