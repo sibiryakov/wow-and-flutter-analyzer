@@ -23,6 +23,7 @@ jobs:
           $args = @(
             "--quiet", "--wait", "--norestart", "--nocache",
             "--add", "Microsoft.VisualStudio.Workload.VCTools",
+            "--add", "Microsoft.VisualStudio.Component.VC.Tools.x86.x64",
             "--add", "Microsoft.VisualStudio.Component.VC.ATLMFC"
           )
           $proc = Start-Process -FilePath $exe -ArgumentList $args -Wait -PassThru
