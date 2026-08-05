@@ -32,42 +32,13 @@ jobs:
             throw "vs_buildtools.exe failed with exit code $($proc.ExitCode)"
           }
 
-      - name: Diagnose install (non-blocking)
-        shell: pwsh
-        run: |
-          $msvcRoot = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\2022\BuildTools\VC\Tools\MSVC"
-          if (Test-Path $msvcRoot) {
-            Get-ChildItem $msvcRoot -Directory | ForEach-Object {
-              $atlmfc = Join-Path $_.FullName "atlmfc"
-              Write-Host "$($_.FullName) -> atlmfc present: $(Test-Path $atlmfc)"
-            }
-          } else {
-            Write-Host "MSVC root not found at $msvcRoot"
-          }
-
-          Write-Host "==== bootstrapper default logs (%TEMP%\dd_*.log) ===="
-          Get-ChildItem -Path "$env:TEMP\dd_*.log" -ErrorAction SilentlyContinue | ForEach-Object {
-            Write-Host "---- $($_.FullName) ----"
-            Get-Content $_.FullName -Tail 150
-          }
-
-      - name: Locate MSBuild
-        id: msbuild
-        shell: pwsh
-        run: |
-          $msbuild = Get-ChildItem -Path "${env:ProgramFiles(x86)}\Microsoft Visual Studio\2022\BuildTools\MSBuild\Current\Bin\MSBuild.exe" -ErrorAction Stop
-          Write-Host "Found: $($msbuild.FullName)"
-          "path=$($msbuild.FullName)" >> $env:GITHUB_OUTPUT
-
       - name: Build (Release|Win32)
-        shell: pwsh
-        run: >
-          & "${{ steps.msbuild.outputs.path }}" wfgui.vcxproj
-          /p:Configuration=Release
-          /p:Platform=Win32
-          /p:PlatformToolset=v143
-          /p:WindowsTargetPlatformVersion=10.0
-          /m
+        shell: cmd
+        run: |
+          call "%ProgramFiles(x86)%\Microsoft Visual Studio\2022\BuildTools\Common7\Tools\VsDevCmd.bat" -arch=x86 -host_arch=x64
+          if errorlevel 1 exit /b 1
+          echo VCINSTALLDIR=%VCINSTALLDIR%
+          msbuild wfgui.vcxproj /p:Configuration=Release /p:Platform=Win32 /p:PlatformToolset=v143 /p:WindowsTargetPlatformVersion=10.0 /m
 
       - name: Upload build artifact
         uses: actions/upload-artifact@v4
