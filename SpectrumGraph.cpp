@@ -66,7 +66,7 @@ void CFrequencyGraph::OnPaint()
 	//using either class will get ride of the 
 	//flicker problem that otherwise presents itself...
 	CPaintDC paintdc(this);
-	CMemDC dc(&paintdc,&rct);
+	CMemDCLocal dc(&paintdc,&rct);
 
 // graph
 	if (m_nLength == 0)
