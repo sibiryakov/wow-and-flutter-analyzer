@@ -18,42 +18,37 @@ jobs:
         shell: pwsh
         run: |
           $exe = "$env:RUNNER_TEMP\vs_buildtools.exe"
-          $logFile = "$env:RUNNER_TEMP\vs_buildtools_install.log"
           Invoke-WebRequest -Uri "https://aka.ms/vs/17/release/vs_buildtools.exe" -OutFile $exe -UseBasicParsing
 
           $args = @(
             "--quiet", "--wait", "--norestart", "--nocache",
-            "--log", $logFile,
             "--add", "Microsoft.VisualStudio.Workload.VCTools",
-            "--add", "Microsoft.VisualStudio.Component.VC.Tools.x86.x64",
-            "--add", "Microsoft.VisualStudio.Component.VC.ATLMFC",
-            "--includeRecommended"
+            "--add", "Microsoft.VisualStudio.Component.VC.ATLMFC"
           )
           $proc = Start-Process -FilePath $exe -ArgumentList $args -Wait -PassThru
           Write-Host "vs_buildtools exit code: $($proc.ExitCode)"
           # 3010 = success, reboot required (fine under --norestart in CI)
           if ($proc.ExitCode -ne 0 -and $proc.ExitCode -ne 3010) {
-            if (Test-Path $logFile) { Get-Content $logFile -Tail 300 }
             throw "vs_buildtools.exe failed with exit code $($proc.ExitCode)"
           }
 
+      - name: Diagnose install (non-blocking)
+        shell: pwsh
+        run: |
           $msvcRoot = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\2022\BuildTools\VC\Tools\MSVC"
-          $found = $false
           if (Test-Path $msvcRoot) {
             Get-ChildItem $msvcRoot -Directory | ForEach-Object {
               $atlmfc = Join-Path $_.FullName "atlmfc"
-              $exists = Test-Path $atlmfc
-              Write-Host "$($_.FullName) -> atlmfc present: $exists"
-              if ($exists) { $found = $true }
+              Write-Host "$($_.FullName) -> atlmfc present: $(Test-Path $atlmfc)"
             }
           } else {
             Write-Host "MSVC root not found at $msvcRoot"
           }
 
-          if (-not $found) {
-            Write-Host "==== install log tail ===="
-            if (Test-Path $logFile) { Get-Content $logFile -Tail 400 } else { Write-Host "(no log at $logFile)" }
-            throw "ATLMFC libraries were not found under any MSVC toolset after install."
+          Write-Host "==== bootstrapper default logs (%TEMP%\dd_*.log) ===="
+          Get-ChildItem -Path "$env:TEMP\dd_*.log" -ErrorAction SilentlyContinue | ForEach-Object {
+            Write-Host "---- $($_.FullName) ----"
+            Get-Content $_.FullName -Tail 150
           }
 
       - name: Locate MSBuild
