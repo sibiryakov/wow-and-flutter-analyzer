@@ -21,19 +21,32 @@ jobs:
           $vsPath = & $vswhere -latest -products * -property installationPath
           $installer = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vs_installer.exe"
           $logFile = "$env:RUNNER_TEMP\vs_modify.log"
+          $stdOut = "$env:RUNNER_TEMP\vs_modify_stdout.log"
+          $stdErr = "$env:RUNNER_TEMP\vs_modify_stderr.log"
 
+          Write-Host "vswhere: $vswhere"
+          Write-Host "installer: $installer"
+          Write-Host "vsPath: [$vsPath]"
           Write-Host "Modifying VS install at $vsPath (log: $logFile)"
+
           $proc = Start-Process -FilePath $installer -ArgumentList @(
             "modify", "--installPath", $vsPath,
             "--add", "Microsoft.VisualStudio.Component.VC.ATLMFC",
             "--quiet", "--norestart", "--wait",
             "--log", $logFile
-          ) -Wait -NoNewWindow -PassThru
+          ) -Wait -NoNewWindow -PassThru `
+            -RedirectStandardOutput $stdOut -RedirectStandardError $stdErr
 
           Write-Host "vs_installer exit code: $($proc.ExitCode)"
+          Write-Host "---- stdout ----"
+          if (Test-Path $stdOut) { Get-Content $stdOut }
+          Write-Host "---- stderr ----"
+          if (Test-Path $stdErr) { Get-Content $stdErr }
+          Write-Host "---- install log ----"
+          if (Test-Path $logFile) { Get-Content $logFile -Tail 300 } else { Write-Host "(no log file at $logFile)" }
+
           # 3010 = success, reboot required (fine under --norestart in CI)
           if ($proc.ExitCode -ne 0 -and $proc.ExitCode -ne 3010) {
-            if (Test-Path $logFile) { Get-Content $logFile -Tail 300 }
             throw "vs_installer modify failed with exit code $($proc.ExitCode)"
           }
 
