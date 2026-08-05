@@ -41,8 +41,9 @@ jobs:
           "path=$($msbuild.FullName)" >> $env:GITHUB_OUTPUT
 
       - name: Build (Release|Win32)
+        shell: pwsh
         run: >
-          "${{ steps.msbuild.outputs.path }}" wfgui.vcxproj
+          & "${{ steps.msbuild.outputs.path }}" wfgui.vcxproj
           /p:Configuration=Release
           /p:Platform=Win32
           /p:WindowsTargetPlatformVersion=10.0
