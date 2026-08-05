@@ -14,22 +14,27 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Ensure MFC/ATL build component is installed
+      - name: Install MFC/ATL build component
         shell: pwsh
         run: |
           $vswhere = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe"
           $vsPath = & $vswhere -latest -products * -property installationPath
-          $hasMfc = & $vswhere -latest -products * -requires Microsoft.VisualStudio.Component.VC.ATLMFC -property installationPath
-          if (-not $hasMfc) {
-            Write-Host "Installing MFC/ATL component into $vsPath"
-            $installer = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vs_installer.exe"
-            Start-Process -FilePath $installer -ArgumentList @(
-              "modify", "--installPath", "`"$vsPath`"",
-              "--add", "Microsoft.VisualStudio.Component.VC.ATLMFC",
-              "--quiet", "--norestart", "--wait"
-            ) -Wait -NoNewWindow
-          } else {
-            Write-Host "MFC/ATL component already present."
+          $installer = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vs_installer.exe"
+          $logFile = "$env:RUNNER_TEMP\vs_modify.log"
+
+          Write-Host "Modifying VS install at $vsPath (log: $logFile)"
+          $proc = Start-Process -FilePath $installer -ArgumentList @(
+            "modify", "--installPath", "`"$vsPath`"",
+            "--add", "Microsoft.VisualStudio.Component.VC.ATLMFC",
+            "--quiet", "--norestart", "--wait",
+            "--log", "`"$logFile`""
+          ) -Wait -NoNewWindow -PassThru
+
+          Write-Host "vs_installer exit code: $($proc.ExitCode)"
+          # 3010 = success, reboot required (fine under --norestart in CI)
+          if ($proc.ExitCode -ne 0 -and $proc.ExitCode -ne 3010) {
+            if (Test-Path $logFile) { Get-Content $logFile -Tail 300 }
+            throw "vs_installer modify failed with exit code $($proc.ExitCode)"
           }
 
       - name: Add MSBuild to PATH
