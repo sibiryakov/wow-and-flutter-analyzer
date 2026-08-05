@@ -24,10 +24,10 @@ jobs:
 
           Write-Host "Modifying VS install at $vsPath (log: $logFile)"
           $proc = Start-Process -FilePath $installer -ArgumentList @(
-            "modify", "--installPath", "`"$vsPath`"",
+            "modify", "--installPath", $vsPath,
             "--add", "Microsoft.VisualStudio.Component.VC.ATLMFC",
             "--quiet", "--norestart", "--wait",
-            "--log", "`"$logFile`""
+            "--log", $logFile
           ) -Wait -NoNewWindow -PassThru
 
           Write-Host "vs_installer exit code: $($proc.ExitCode)"
