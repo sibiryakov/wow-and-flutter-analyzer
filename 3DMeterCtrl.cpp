@@ -57,7 +57,7 @@ void C3DMeterCtrl::OnPaint()
 	GetClientRect (&m_rectCtrl) ;
 
 	// make a memory dc
-	CMemDC memDC(&dc, &m_rectCtrl);
+	CMemDCLocal memDC(&dc, &m_rectCtrl);
 
 	// set up a memory dc for the background stuff 
 	// if one isn't being used

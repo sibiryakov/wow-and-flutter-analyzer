@@ -37,7 +37,7 @@
 // This class implements a memory Device Context which allows
 // flicker free drawing.
 
-class CMemDC : public CDC 
+class CMemDCLocal : public CDC
 {
 private:	
 	CBitmap		m_bitmap;		// Offscreen bitmap
@@ -47,7 +47,7 @@ private:
 	BOOL		m_bMemDC;		// TRUE if CDC really is a Memory DC.
 public:
 	
-	CMemDC(CDC* pDC, const CRect* pRect = NULL, bool boolToMemory = TRUE) : CDC()
+	CMemDCLocal(CDC* pDC, const CRect* pRect = NULL, bool boolToMemory = TRUE) : CDC()
 	{
 		ASSERT(pDC != NULL); 
 
@@ -96,34 +96,34 @@ public:
 	}
 
 	
-	~CMemDC()	
-	{		
-		if (m_bMemDC) 
+	~CMemDCLocal()
+	{
+		if (m_bMemDC)
 		{
 			// Copy the offscreen bitmap onto the screen.
 			m_pDC->BitBlt(m_rect.left, m_rect.top, m_rect.Width(), m_rect.Height(),
-				            this, m_rect.left, m_rect.top, SRCCOPY);			
-			
+				            this, m_rect.left, m_rect.top, SRCCOPY);
+
 			//Swap back the original bitmap.
 			SelectObject(m_oldBitmap);
-		} 
-		else 
+		}
+		else
 		{
 			// All we need to do is replace the DC with an illegal value,
 			// this keeps us from accidently deleting the handles associated with
-			// the CDC that was passed to the constructor.			
+			// the CDC that was passed to the constructor.
 			m_hDC = m_hAttribDC = NULL;
-		}	
+		}
 	}
-	
-	// Allow usage as a pointer	
-	CMemDC* operator->() 
+
+	// Allow usage as a pointer
+	CMemDCLocal* operator->()
 	{
 		return this;
-	}	
+	}
 
-	// Allow usage as a pointer	
-	operator CMemDC*() 
+	// Allow usage as a pointer
+	operator CMemDCLocal*()
 	{
 		return this;
 	}

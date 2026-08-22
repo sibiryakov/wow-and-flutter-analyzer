@@ -1,0 +1,78 @@
+name: Build (Windows / MFC)
+
+on:
+  push:
+    branches: [ master ]
+    tags: [ 'v*' ]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install VS Build Tools (VC++ + MFC/ATL)
+        shell: pwsh
+        run: |
+          $exe = "$env:RUNNER_TEMP\vs_buildtools.exe"
+          Invoke-WebRequest -Uri "https://aka.ms/vs/17/release/vs_buildtools.exe" -OutFile $exe -UseBasicParsing
+
+          $args = @(
+            "--quiet", "--wait", "--norestart", "--nocache",
+            "--add", "Microsoft.VisualStudio.Workload.VCTools",
+            "--add", "Microsoft.VisualStudio.Component.VC.Tools.x86.x64",
+            "--add", "Microsoft.VisualStudio.Component.VC.ATLMFC"
+          )
+          $proc = Start-Process -FilePath $exe -ArgumentList $args -Wait -PassThru
+          Write-Host "vs_buildtools exit code: $($proc.ExitCode)"
+          # 3010 = success, reboot required (fine under --norestart in CI)
+          if ($proc.ExitCode -ne 0 -and $proc.ExitCode -ne 3010) {
+            throw "vs_buildtools.exe failed with exit code $($proc.ExitCode)"
+          }
+
+      - name: Build (Release|Win32)
+        shell: cmd
+        run: |
+          call "%ProgramFiles(x86)%\Microsoft Visual Studio\2022\BuildTools\Common7\Tools\VsDevCmd.bat" -arch=x86 -host_arch=x64
+          if errorlevel 1 exit /b 1
+          for /f "delims=" %%i in ('dir /b "%VCINSTALLDIR%Tools\MSVC"') do set VCTOOLSVER=%%i
+          msbuild wfgui.vcxproj /p:Configuration=Release /p:Platform=Win32 /p:PlatformToolset=v143 /p:VCToolsVersion=%VCTOOLSVER% /p:WindowsTargetPlatformVersion=10.0 /m
+
+      - name: Set version
+        id: version
+        shell: pwsh
+        run: |
+          if ($env:GITHUB_REF -like 'refs/tags/*') {
+            $ver = $env:GITHUB_REF -replace 'refs/tags/', ''
+          } else {
+            $ver = $env:GITHUB_SHA.Substring(0, 7)
+          }
+          echo "version=$ver" >> $env:GITHUB_OUTPUT
+
+      - name: Rename binary with version
+        shell: pwsh
+        run: |
+          $exe = Get-ChildItem -Path Release -Filter *.exe | Select-Object -First 1
+          $newName = "$($exe.BaseName)-${{ steps.version.outputs.version }}$($exe.Extension)"
+          Rename-Item -Path $exe.FullName -NewName $newName
+          Write-Host "Renamed to $newName"
+
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: wfgui-release-win32
+          path: Release/*.exe
+          if-no-files-found: error
+
+      - name: Publish GitHub Release
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: Release/*.exe
