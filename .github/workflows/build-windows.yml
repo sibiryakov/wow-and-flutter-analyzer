@@ -3,8 +3,12 @@ name: Build (Windows / MFC)
 on:
   push:
     branches: [ master ]
+    tags: [ 'v*' ]
   pull_request:
   workflow_dispatch:
+
+permissions:
+  contents: write
 
 jobs:
   build:
@@ -47,3 +51,9 @@ jobs:
           name: wfgui-release-win32
           path: Release/*.exe
           if-no-files-found: error
+
+      - name: Publish GitHub Release
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: Release/*.exe
