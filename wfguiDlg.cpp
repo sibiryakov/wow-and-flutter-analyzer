@@ -217,7 +217,11 @@ BOOL CWfguiDlg::OnInitDialog()
 
 	if(FillDevices()<=0)
 	{
-		AfxMessageBox("NO Input Devices Found..",MB_ICONERROR);
+		AfxMessageBox("No audio input devices were found.\n\n"
+			"At least one audio device is required for the application to operate.\n\n"
+			"If you are using your computer's built-in audio card, please insert a jack "
+			"into the input connector first; otherwise the system will not be able to detect it.",
+			MB_ICONERROR);
 		CDialog::OnOK();
 	}
 
