@@ -112,7 +112,7 @@ CWfguiDlg::CWfguiDlg(CWnd* pParent /*=NULL*/)
 	: CDialog(CWfguiDlg::IDD, pParent)
 	, m_radio3(false)
 	, m_max_10_sec(_T(""))
-	, m_log(false)
+	, m_log(FALSE)
 {
 	//{{AFX_DATA_INIT(CWfguiDlg)
 	m_status = _T("");
@@ -150,6 +150,7 @@ void CWfguiDlg::DoDataExchange(CDataExchange* pDX)
 	DDX_Control(pDX, IDC_FREQ, m_freq_display);
 	DDX_Control(pDX, IDC_RMS, m_RMS_box);
 	DDX_Control(pDX, IDC_LED, m_OK_LED);
+	DDX_Check(pDX, IDC_CHECK1, m_log);
 }
 
 BEGIN_MESSAGE_MAP(CWfguiDlg, CDialog)

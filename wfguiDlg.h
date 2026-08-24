@@ -109,7 +109,7 @@ public:
 	CEdit m_RMS_box;
 	//CButton
 	CLedButton m_OK_LED;
-	bool m_log;
+	BOOL m_log;
 };
 
 //{{AFX_INSERT_LOCATION}}
