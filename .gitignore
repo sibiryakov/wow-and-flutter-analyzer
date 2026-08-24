@@ -1,0 +1,15 @@
+Debug/
+Release/
+*.exe
+*.obj
+*.pdb
+*.ilk
+*.tlog
+*.lastbuildstate
+*.log
+*.pch
+*.res
+*.bsc
+*.lib
+*.exp
+*.aps
