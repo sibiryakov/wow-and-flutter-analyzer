@@ -187,16 +187,16 @@ W&F %  =  count ÷ 15873      (3150 Hz tone)
 W&F %  =  count ÷ 16667      (3000 Hz tone)
 ```
 
-> A comment in the source claims `for 1% will be 315`. It is wrong, and worth
-> ignoring: 315 would be right if the unit were tenths of a **Hz of frequency**
-> deviation, but what is stored is tenths of a **nanosecond of half-period**
-> error. 1% is about 15873 counts, not 315.
+**Range limit.** A signed 16-bit sample caps at ±32767, which is only **±2.06%**
+at 3150 Hz (±1.97% at 3000 Hz) — while the meter itself accepts anything within
+±5% of nominal. A deck running 2–5% off speed therefore reads normally on screen
+but cannot be captured accurately.
 
-**Range limit — read this before trusting a capture.** A signed 16-bit sample
-caps at ±32767, which is only **±2.06%** at 3150 Hz (±1.97% at 3000 Hz). The
-meter itself happily accepts anything within ±5% of nominal, so a deck running
-2–5% off speed will read normally on screen while the capture wraps around into
-nonsense. Correct gross speed error before capturing.
+Samples are clamped at that limit rather than allowed to wrap, and the status
+line reads **`Capture clipped`** for the rest of the run once it happens. A
+clipped capture is railed and obviously unusable; treat it as a signal to correct
+gross speed error and measure again, not as data. Older builds wrapped instead,
+producing files that looked entirely plausible and were not.
 
 **Two properties worth understanding**
 
@@ -245,6 +245,7 @@ from here.
 | Symptom | Cause / fix |
 |---|---|
 | **"NO Input Devices Found.."**, then exits | No input device present. Plug the cable in *before* launching. Check the machine actually has a line input; add a USB interface if not. |
+| **"Capture clipped"** in the status line | The deck is more than ~2% off nominal speed, beyond what the capture file can represent. The meter readings are still valid; the `WF_out.dat` capture is not. Correct the speed and measure again. |
 | **"Signal too low"** never clears | Input below roughly −56 dBFS. Check level and that the input is enabled in Windows sound settings and privacy settings. Most often, though, it is the next row. |
 | **Wrong input used, whatever you select** | Known bug: the dropdown is sorted alphabetically but its *position* is passed to the sound API as the *device number*, so the two disagree. **Try the other entries** until one works — the one that works may be labelled something unrelated. |
 | **Dropdown shows only one line** | The list is there but drawn one item tall. Scroll it with the **mouse wheel** or the **arrow keys**. |
