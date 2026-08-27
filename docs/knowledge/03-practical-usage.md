@@ -127,9 +127,7 @@ Post #86 shows the technique finding a real fault: an autoreverse deck measured
 This is the most valuable advanced feature and the thread took years to pin down.
 Source-confirmed parameters:
 
-- **Raw headerless PCM**, signed **16-bit**, **mono**, little-endian. *(Since
-  superseded: the file now stores measured frequency in Hz as 32-bit float —
-  see the README. Captures from older builds still need these settings.)*
+- **Raw headerless PCM**, signed **16-bit**, **mono**, little-endian.
 - **Sample rate = 2 × the carrier**: **6000 Hz** for a 3000 Hz tone, **6300 Hz**
   for 3150 Hz (posts #10, #12, #64 — and confirmed in source).
 - Contents: the **unweighted** demodulated deviation, i.e. the discriminator

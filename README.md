@@ -165,16 +165,40 @@ that drifts as the tape pack changes.
 
 ### Finding the guilty part
 
-Ticking **Save wave** writes `WF_freq.dat`: the **measured frequency of the test
-tone**, one sample per zero crossing, in Hz.
+Ticking **Save wave** writes `WF_out.dat` — the demodulator's raw output, which
+is what you run a spectrum analysis on to work out *which part* is at fault.
+
+**What is actually stored**
 
 | | |
 |---|---|
-| Contents | measured frequency in **Hz** — values sit around 3000 or 3150 |
-| Format | headerless, **32-bit float**, **mono**, little-endian |
+| Quantity | half-period error: `10 × (nominal − measured)`, in nanoseconds |
+| One count | 0.1 ns of half-period error |
+| Sign | **positive = running fast** (measured half-period shorter than nominal) |
+| Format | headerless, signed **16-bit**, **mono**, little-endian |
 | Sample rate | **2 × carrier** — **6000 Hz** for a 3000 Hz tone, **6300 Hz** for 3150 Hz |
 
-Two properties make this file worth understanding:
+It is **not** a frequency, and **not** a percentage. To convert a count to the
+percentage the meter displays, divide by the nominal half-period in nanoseconds
+over ten:
+
+```
+W&F %  =  count ÷ 15873      (3150 Hz tone)
+W&F %  =  count ÷ 16667      (3000 Hz tone)
+```
+
+> A comment in the source claims `for 1% will be 315`. It is wrong, and worth
+> ignoring: 315 would be right if the unit were tenths of a **Hz of frequency**
+> deviation, but what is stored is tenths of a **nanosecond of half-period**
+> error. 1% is about 15873 counts, not 315.
+
+**Range limit — read this before trusting a capture.** A signed 16-bit sample
+caps at ±32767, which is only **±2.06%** at 3150 Hz (±1.97% at 3000 Hz). The
+meter itself happily accepts anything within ±5% of nominal, so a deck running
+2–5% off speed will read normally on screen while the capture wraps around into
+nonsense. Correct gross speed error before capturing.
+
+**Two properties worth understanding**
 
 - **It is written before the weighting filter.** The contents do not depend on
   the dropdown — DIN, Wow, Flutter and Unweighted all produce an identical file.
@@ -185,28 +209,36 @@ Two properties make this file worth understanding:
   they turn at, not at perceptually-weighted rates.
 - **The sample rate is tied to the carrier, not to audio.** One sample per zero
   crossing, and a sine crosses zero twice per cycle — hence 2 × carrier. Set the
-  wrong rate on import and every frequency you read is scaled by the ratio.
+  wrong rate on import and every frequency you read off the spectrum is scaled by
+  the ratio. This is the single most common way to misread the file.
 
-Import it into Audacity (File → Import → Raw Data) with those settings and run a
-spectrum analysis. Samples sit around 3150 rather than around zero, so **remove
-the DC offset first** or ignore the zero bin. Each peak is a rotating part, and
-its circumference follows from the tape speed:
+**Intended use — finding the faulty part**
+
+1. Audacity → File → Import → Raw Data, with `Signed 16-bit PCM`,
+   `Little-endian`, `1 Channel (Mono)`, and the sample rate above.
+2. **Remove the DC offset first**: Effect → Normalize, with *Remove DC offset*
+   ticked. The DC component is the deck's static speed error, and left in place
+   it leaks across the low-frequency bins — which is precisely the wow band you
+   are trying to read.
+3. Analyze → Plot Spectrum, `Size: 65536`, `Axis: Log frequency`. That gives
+   ~0.1 Hz resolution and needs about 10 seconds of capture selected.
+
+Each peak is a rotating part, and its circumference follows from the tape speed:
 
 ```
 circumference = tape speed ÷ peak frequency
 ```
 
 At cassette speed (4.76 cm/s), a peak at 5 Hz is a part of roughly 0.95 cm
-circumference — enough to tell a capstan from an idler from a motor.
+circumference — enough to tell a capstan from an idler from a motor. Read the
+peaks relative to each other; take absolute W&F percentages from the meter, not
+from here.
 
-> Both files are written to the program's working directory. Neither is
-> overwritten: if `WF_freq.dat` already exists the next run becomes
-> `WF_freq_1.dat`, then `WF_freq_2.dat`, and `log.txt` behaves the same way. The
-> app does not announce which name it settled on, so check the folder if you have
-> several runs. If the files seem to vanish entirely, see Troubleshooting.
->
-> Captures from older builds are named `WF_out.dat` and hold **signed 16-bit**
-> samples, not floats — import those with the old settings.
+> Both files are written to the program's working directory, and neither
+> overwrites the previous run: if `WF_out.dat` already exists the next capture
+> becomes `WF_out_1.dat`, then `WF_out_2.dat`, and `log.txt` behaves the same
+> way. The app does not announce which name it settled on, so check the folder
+> after several runs. If the files seem to vanish entirely, see Troubleshooting.
 
 ## Troubleshooting
 
@@ -217,7 +249,7 @@ circumference — enough to tell a capstan from an idler from a motor.
 | **Wrong input used, whatever you select** | Known bug: the dropdown is sorted alphabetically but its *position* is passed to the sound API as the *device number*, so the two disagree. **Try the other entries** until one works — the one that works may be labelled something unrelated. |
 | **Dropdown shows only one line** | The list is there but drawn one item tall. Scroll it with the **mouse wheel** or the **arrow keys**. |
 | **Weighting can't be changed** | It locks on Start and is not released on Stop. Set it before starting, or restart the app. |
-| **`log.txt` / `WF_freq.dat` missing** | Written to the working directory. Under UAC, writes into `Program Files` are silently redirected to `C:\Users\<you>\AppData\Local\VirtualStore\...`. **Run it from an ordinary user-writable folder.** (For `log.txt`, also see the limitation above.) |
+| **`log.txt` / `WF_out.dat` missing** | Written to the working directory. Under UAC, writes into `Program Files` are silently redirected to `C:\Users\<you>\AppData\Local\VirtualStore\...`. **Run it from an ordinary user-writable folder.** (For `log.txt`, also see the limitation above.) |
 | Frequency shows a value but nothing else updates | Tone is more than ±5% off nominal, or the 3000/3150 setting doesn't match the tape. |
 | Vendor audio drivers misbehaving | Uninstalling the vendor driver in favour of the generic Windows one has fixed this for Focusrite interfaces. |
 
