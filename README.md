@@ -165,8 +165,11 @@ that drifts as the tape pack changes.
 
 ### Finding the guilty part
 
-Ticking **Save wave** writes `WF_out.dat` — the demodulator's raw output, which
+Ticking **Save wave** writes `WF_out.wav` — the demodulator's raw output, which
 is what you run a spectrum analysis on to work out *which part* is at fault.
+
+It is an ordinary WAV file, so **just open it**: Audacity, or any editor, reads
+the sample rate and width from the header. Nothing to configure.
 
 **What is actually stored**
 
@@ -175,7 +178,7 @@ is what you run a spectrum analysis on to work out *which part* is at fault.
 | Quantity | half-period error: `10 × (nominal − measured)`, in nanoseconds |
 | One count | 0.1 ns of half-period error |
 | Sign | **positive = running fast** (measured half-period shorter than nominal) |
-| Format | headerless, signed **16-bit**, **mono**, little-endian |
+| Format | WAV, **32-bit** signed PCM, **mono** |
 | Sample rate | **2 × carrier** — **6000 Hz** for a 3000 Hz tone, **6300 Hz** for 3150 Hz |
 
 It is **not** a frequency, and **not** a percentage. To convert a count to the
@@ -187,17 +190,6 @@ W&F %  =  count ÷ 15873      (3150 Hz tone)
 W&F %  =  count ÷ 16667      (3000 Hz tone)
 ```
 
-**Range limit.** A signed 16-bit sample caps at ±32767, which is only **±2.06%**
-at 3150 Hz (±1.97% at 3000 Hz) — while the meter itself accepts anything within
-±5% of nominal. A deck running 2–5% off speed therefore reads normally on screen
-but cannot be captured accurately.
-
-Samples are clamped at that limit rather than allowed to wrap, and the status
-line reads **`Capture clipped`** for the rest of the run once it happens. A
-clipped capture is railed and obviously unusable; treat it as a signal to correct
-gross speed error and measure again, not as data. Older builds wrapped instead,
-producing files that looked entirely plausible and were not.
-
 **Two properties worth understanding**
 
 - **It is written before the weighting filter.** The contents do not depend on
@@ -208,18 +200,18 @@ producing files that looked entirely plausible and were not.
   that had already thrown the evidence away. Rotating parts turn at whatever rate
   they turn at, not at perceptually-weighted rates.
 - **The sample rate is tied to the carrier, not to audio.** One sample per zero
-  crossing, and a sine crosses zero twice per cycle — hence 2 × carrier. Set the
-  wrong rate on import and every frequency you read off the spectrum is scaled by
-  the ratio. This is the single most common way to misread the file.
+  crossing, and a sine crosses zero twice per cycle — hence 2 × carrier. The
+  header records it, so this is now just a curiosity rather than something you
+  can get wrong.
 
 **Intended use — finding the faulty part**
 
-1. Audacity → File → Import → Raw Data, with `Signed 16-bit PCM`,
-   `Little-endian`, `1 Channel (Mono)`, and the sample rate above.
+1. Open `WF_out.wav`.
 2. **Remove the DC offset first**: Effect → Normalize, with *Remove DC offset*
    ticked. The DC component is the deck's static speed error, and left in place
    it leaks across the low-frequency bins — which is precisely the wow band you
-   are trying to read.
+   are trying to read. Normalizing the amplitude at the same time makes the trace
+   visible, since a good deck uses a tiny fraction of the available range.
 3. Analyze → Plot Spectrum, `Size: 65536`, `Axis: Log frequency`. That gives
    ~0.1 Hz resolution and needs about 10 seconds of capture selected.
 
@@ -234,9 +226,15 @@ circumference — enough to tell a capstan from an idler from a motor. Read the
 peaks relative to each other; take absolute W&F percentages from the meter, not
 from here.
 
+> **Captures from older builds** are named `WF_out.dat` and are headerless,
+> signed **16-bit**. Import those with File → Import → Raw Data, choosing
+> `Signed 16-bit PCM`, `Little-endian`, `1 Channel (Mono)` and the sample rate
+> above. The count-to-percent conversion is the same — the scale did not change,
+> only the width and the container.
+
 > Both files are written to the program's working directory, and neither
-> overwrites the previous run: if `WF_out.dat` already exists the next capture
-> becomes `WF_out_1.dat`, then `WF_out_2.dat`, and `log.txt` behaves the same
+> overwrites the previous run: if `WF_out.wav` already exists the next capture
+> becomes `WF_out_1.wav`, then `WF_out_2.wav`, and `log.txt` behaves the same
 > way. The app does not announce which name it settled on, so check the folder
 > after several runs. If the files seem to vanish entirely, see Troubleshooting.
 
@@ -245,12 +243,12 @@ from here.
 | Symptom | Cause / fix |
 |---|---|
 | **"NO Input Devices Found.."**, then exits | No input device present. Plug the cable in *before* launching. Check the machine actually has a line input; add a USB interface if not. |
-| **"Capture clipped"** in the status line | The deck is more than ~2% off nominal speed, beyond what the capture file can represent. The meter readings are still valid; the `WF_out.dat` capture is not. Correct the speed and measure again. |
+| **"Capture clipped"** in the status line | A capture sample hit the limit of its range. With 32-bit samples this needs something pathological, such as a long signal dropout stretching one measurement. The meter readings either side remain valid; the capture does not. |
 | **"Signal too low"** never clears | Input below roughly −56 dBFS. Check level and that the input is enabled in Windows sound settings and privacy settings. Most often, though, it is the next row. |
 | **Wrong input used, whatever you select** | Known bug: the dropdown is sorted alphabetically but its *position* is passed to the sound API as the *device number*, so the two disagree. **Try the other entries** until one works — the one that works may be labelled something unrelated. |
 | **Dropdown shows only one line** | The list is there but drawn one item tall. Scroll it with the **mouse wheel** or the **arrow keys**. |
 | **Weighting can't be changed** | It locks on Start and is not released on Stop. Set it before starting, or restart the app. |
-| **`log.txt` / `WF_out.dat` missing** | Written to the working directory. Under UAC, writes into `Program Files` are silently redirected to `C:\Users\<you>\AppData\Local\VirtualStore\...`. **Run it from an ordinary user-writable folder.** (For `log.txt`, also see the limitation above.) |
+| **`log.txt` / `WF_out.wav` missing** | Written to the working directory. Under UAC, writes into `Program Files` are silently redirected to `C:\Users\<you>\AppData\Local\VirtualStore\...`. **Run it from an ordinary user-writable folder.** (For `log.txt`, also see the limitation above.) |
 | Frequency shows a value but nothing else updates | Tone is more than ±5% off nominal, or the 3000/3150 setting doesn't match the tape. |
 | Vendor audio drivers misbehaving | Uninstalling the vendor driver in favour of the generic Windows one has fixed this for Focusrite interfaces. |
 
