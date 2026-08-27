@@ -481,6 +481,29 @@ void CWfguiDlg::OnButton1() //STOP
 	
 }
 
+// Never overwrite an existing capture: if the plain name is taken, fall back to
+// name_1, name_2 and so on. A measurement is a tape pass long and cannot be
+// reproduced exactly, so silently truncating the previous run on Start was an
+// easy way to lose one.
+CString CWfguiDlg::MakeUniqueFileName(LPCTSTR lpszBase, LPCTSTR lpszExt)
+{
+	CString csName;
+	int nT1;
+
+	csName.Format("%s%s", lpszBase, lpszExt);
+	if(GetFileAttributes(csName) == INVALID_FILE_ATTRIBUTES)
+		return csName;
+
+	for(nT1 = 1; nT1 < 10000; ++nT1)
+	{
+		csName.Format("%s_%d%s", lpszBase, nT1, lpszExt);
+		if(GetFileAttributes(csName) == INVALID_FILE_ATTRIBUTES)
+			return csName;
+	}
+
+	return csName; // 10000 already in the way, overwrite the last rather than fail
+}
+
 void CWfguiDlg::OnButton2() // START
 {
 	MMRESULT mRes;
@@ -515,11 +538,14 @@ void CWfguiDlg::OnButton2() // START
 	nanosec_per_sample = 10e8 / 44100;
 
 
+	// WF_freq.dat rather than the old WF_out.dat: the contents changed from a
+	// scaled interval error to frequency in Hz, and the file has no header to
+	// tell the two apart.
 	if(m_savefile)
-			outf = fopen("WF_out.dat","wb");
+			outf = fopen(MakeUniqueFileName("WF_freq", ".dat"),"wb");
 
 	if(m_log)
-			fp_log = fopen("log.txt","w");
+			fp_log = fopen(MakeUniqueFileName("log", ".txt"),"w");
 
 	OpenDevice();	
 	PrepareBuffers();
