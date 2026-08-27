@@ -44,7 +44,6 @@ double max_RMS[100];
 double max_peak_10sec[100];
 int index_100, index_max_RMS;
 
-int process_sample(void);
 extern "C" {
 	double process_2nd_order(register double val);
 	double process_flutter(register double val);
@@ -322,7 +321,74 @@ HCURSOR CWfguiDlg::OnQueryDragIcon()
 
 
 
-short error_3150;
+int capture_sample; // one 32 bit sample of the capture
+int capture_clipped; // a sample saturated during this run
+
+// Canonical 44 byte PCM WAV header. The two size fields are only known once
+// the run ends, so they are written as zero and patched in on close.
+#pragma pack(push, 1)
+struct WF_WAV_HEADER
+{
+	char  riff_id[4];
+	DWORD riff_size;
+	char  wave_id[4];
+	char  fmt_id[4];
+	DWORD fmt_size;
+	WORD  format_tag;
+	WORD  channels;
+	DWORD sample_rate;
+	DWORD byte_rate;
+	WORD  block_align;
+	WORD  bits_per_sample;
+	char  data_id[4];
+	DWORD data_size;
+};
+#pragma pack(pop)
+
+#define WF_WAV_BITS  32
+#define WF_WAV_BYTES (WF_WAV_BITS / 8)
+
+static void WriteWavHeader(FILE *fp, DWORD dwSampleRate)
+{
+	struct WF_WAV_HEADER h;
+
+	memcpy(h.riff_id, "RIFF", 4);
+	memcpy(h.wave_id, "WAVE", 4);
+	memcpy(h.fmt_id,  "fmt ", 4);
+	memcpy(h.data_id, "data", 4);
+
+	h.riff_size       = 0; // patched on close
+	h.fmt_size        = 16;
+	h.format_tag      = 1; // PCM
+	h.channels        = 1;
+	h.sample_rate     = dwSampleRate;
+	h.block_align     = WF_WAV_BYTES;
+	h.byte_rate       = dwSampleRate * WF_WAV_BYTES;
+	h.bits_per_sample = WF_WAV_BITS;
+	h.data_size       = 0; // patched on close
+
+	fwrite(&h, sizeof(h), 1, fp);
+}
+
+// Fill in the sizes now that the length is known, so the file is a valid WAV
+// that any editor will open without being told the rate or the sample width.
+static void PatchWavHeader(FILE *fp)
+{
+	DWORD dwDataSize, dwRiffSize;
+	long lEnd = ftell(fp);
+
+	if(lEnd < (long)sizeof(struct WF_WAV_HEADER))
+		return;
+
+	dwDataSize = (DWORD)(lEnd - sizeof(struct WF_WAV_HEADER));
+	dwRiffSize = (DWORD)(lEnd - 8);
+
+	if(fseek(fp, 4, SEEK_SET) == 0)
+		fwrite(&dwRiffSize, sizeof(dwRiffSize), 1, fp);
+
+	if(fseek(fp, (long)sizeof(struct WF_WAV_HEADER) - 4, SEEK_SET) == 0)
+		fwrite(&dwDataSize, sizeof(dwDataSize), 1, fp);
+}
 
 
 double freq,err1, err2;
@@ -360,13 +426,6 @@ LRESULT CWfguiDlg::OnMyMessage(WPARAM wParam, LPARAM lParam)
 
 
 double proper_interval = 0.5 * 10e8/3150; // half a period of 3150 sampled
-
-int process_sample(void){
-
-      last_val = this_val;
-
-	  return error_3150;
-}
 
 short input_wav[4410]; // 0.1 sec worth of the wave
 int scope_samples;
@@ -471,6 +530,7 @@ void CWfguiDlg::OnButton1() //STOP
 
 	GetDlgItem(IDC_BUTTON2)->EnableWindow(TRUE);
 	if(outf > 0){
+		PatchWavHeader(outf);
 		fclose(outf);
 		outf = NULL;
 	}
@@ -490,6 +550,29 @@ void CWfguiDlg::OnButton1() //STOP
 	//UnPrepareBuffers();
 	//waveInClose(m_hWaveIn);
 	
+}
+
+// Never overwrite an existing capture: if the plain name is taken, fall back to
+// name_1, name_2 and so on. A measurement is a tape pass long and cannot be
+// reproduced exactly, so silently truncating the previous run on Start was an
+// easy way to lose one.
+CString CWfguiDlg::MakeUniqueFileName(LPCTSTR lpszBase, LPCTSTR lpszExt)
+{
+	CString csName;
+	int nT1;
+
+	csName.Format("%s%s", lpszBase, lpszExt);
+	if(GetFileAttributes(csName) == INVALID_FILE_ATTRIBUTES)
+		return csName;
+
+	for(nT1 = 1; nT1 < 10000; ++nT1)
+	{
+		csName.Format("%s_%d%s", lpszBase, nT1, lpszExt);
+		if(GetFileAttributes(csName) == INVALID_FILE_ATTRIBUTES)
+			return csName;
+	}
+
+	return csName; // 10000 already in the way, overwrite the last rather than fail
 }
 
 void CWfguiDlg::OnButton2() // START
@@ -523,14 +606,18 @@ void CWfguiDlg::OnButton2() // START
 	started = 0; // for discarding a few first points
 	peak = 0.0;
 	max_peak = 0.0;
+	capture_clipped = 0;
 	nanosec_per_sample = 10e8 / 44100;
 
 
-	if(m_savefile)
-			outf = fopen("WF_out.dat","wb");
+	if(m_savefile){
+			outf = fopen(MakeUniqueFileName("WF_out", ".wav"),"wb");
+			if(outf > 0)
+				WriteWavHeader(outf, IsDlgButtonChecked(IDC_RADIO5) ? 6000 : 6300);
+	}
 
 	if(m_log)
-			fp_log = fopen("log.txt","w");
+			fp_log = fopen(MakeUniqueFileName("log", ".txt"),"w");
 
 	OpenDevice();	
 	PrepareBuffers();
@@ -727,7 +814,7 @@ void CWfguiDlg::ProcessHeader(WAVEHDR *pHdr)
 			m_OK_LED.Depress(false);
 			return;
 		}
-		m_status = "";
+		m_status = capture_clipped ? "Capture clipped" : "";
 
 		m_OK_LED.Depress(true);
 
@@ -758,8 +845,37 @@ void CWfguiDlg::ProcessHeader(WAVEHDR *pHdr)
 			last_val = this_val;
 
 			if(zero_cross){
-				  error_3150 = (short)(10 * (proper_interval - interval));
-				// for 1% will be 315
+				  // One count is 0.1 ns of half period error, so at 3150 Hz 1%
+				  // is about 15873 counts. An older comment here read "for 1%
+				  // will be 315", which would only be right if the unit were
+				  // tenths of a Hz of frequency deviation rather than of
+				  // half period error.
+				  //
+				  // The scale is unchanged from when this was a short, so a
+				  // capture of an in range deck holds exactly the values it
+				  // always did. 32 bits removes the ceiling: a short saturated
+				  // around +/-2% while the frequency gate above accepts +/-5%,
+				  // so decks running 2-5% off used to wrap the cast and fill
+				  // the file with values that looked like real signal.
+				  //
+				  // The clamp is now only reachable through something
+				  // pathological, such as a long dropout stretching one
+				  // interval, but a railed capture is visibly broken where a
+				  // wrapped one is not.
+				  {
+					  double scaled = 10.0 * (proper_interval - interval);
+
+					  if(scaled > 2147483647.0){
+						  scaled = 2147483647.0;
+						  if(m_savefile)
+							  capture_clipped = 1;
+					  } else if(scaled < -2147483648.0){
+						  scaled = -2147483648.0;
+						  if(m_savefile)
+							  capture_clipped = 1;
+					  }
+					  capture_sample = (int)scaled;
+				  }
 
 		
 				if(first_buffer){
@@ -771,7 +887,7 @@ void CWfguiDlg::ProcessHeader(WAVEHDR *pHdr)
 				  
 				if(m_savefile)
 					if(outf > 0)
-						fwrite(&error_3150,2,1,outf);
+						fwrite(&capture_sample,WF_WAV_BYTES,1,outf);
 		
 		
 				err = (proper_interval - interval)   / proper_interval; // in %
