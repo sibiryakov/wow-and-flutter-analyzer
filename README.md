@@ -165,7 +165,7 @@ that drifts as the tape pack changes.
 
 ### Finding the guilty part
 
-Ticking **Save wave** writes `WF_out.dat`: the **measured frequency of the test
+Ticking **Save wave** writes `WF_freq.dat`: the **measured frequency of the test
 tone**, one sample per zero crossing, in Hz.
 
 | | |
@@ -189,8 +189,8 @@ Two properties make this file worth understanding:
 
 Import it into Audacity (File → Import → Raw Data) with those settings and run a
 spectrum analysis. Samples sit around 3150 rather than around zero, so **remove
-the DC offset first** or ignore the zero bin. Each peak is a rotating part, and its circumference follows
-from the tape speed:
+the DC offset first** or ignore the zero bin. Each peak is a rotating part, and
+its circumference follows from the tape speed:
 
 ```
 circumference = tape speed ÷ peak frequency
@@ -199,9 +199,14 @@ circumference = tape speed ÷ peak frequency
 At cassette speed (4.76 cm/s), a peak at 5 Hz is a part of roughly 0.95 cm
 circumference — enough to tell a capstan from an idler from a motor.
 
-> Both files are written to the program's working directory and **overwritten on
-> every run** — rename them after each measurement. If they seem to vanish, see
-> Troubleshooting.
+> Both files are written to the program's working directory. Neither is
+> overwritten: if `WF_freq.dat` already exists the next run becomes
+> `WF_freq_1.dat`, then `WF_freq_2.dat`, and `log.txt` behaves the same way. The
+> app does not announce which name it settled on, so check the folder if you have
+> several runs. If the files seem to vanish entirely, see Troubleshooting.
+>
+> Captures from older builds are named `WF_out.dat` and hold **signed 16-bit**
+> samples, not floats — import those with the old settings.
 
 ## Troubleshooting
 
@@ -212,7 +217,7 @@ circumference — enough to tell a capstan from an idler from a motor.
 | **Wrong input used, whatever you select** | Known bug: the dropdown is sorted alphabetically but its *position* is passed to the sound API as the *device number*, so the two disagree. **Try the other entries** until one works — the one that works may be labelled something unrelated. |
 | **Dropdown shows only one line** | The list is there but drawn one item tall. Scroll it with the **mouse wheel** or the **arrow keys**. |
 | **Weighting can't be changed** | It locks on Start and is not released on Stop. Set it before starting, or restart the app. |
-| **`log.txt` / `WF_out.dat` missing** | Written to the working directory. Under UAC, writes into `Program Files` are silently redirected to `C:\Users\<you>\AppData\Local\VirtualStore\...`. **Run it from an ordinary user-writable folder.** (For `log.txt`, also see the limitation above.) |
+| **`log.txt` / `WF_freq.dat` missing** | Written to the working directory. Under UAC, writes into `Program Files` are silently redirected to `C:\Users\<you>\AppData\Local\VirtualStore\...`. **Run it from an ordinary user-writable folder.** (For `log.txt`, also see the limitation above.) |
 | Frequency shows a value but nothing else updates | Tone is more than ±5% off nominal, or the 3000/3150 setting doesn't match the tape. |
 | Vendor audio drivers misbehaving | Uninstalling the vendor driver in favour of the generic Windows one has fixed this for Focusrite interfaces. |
 
