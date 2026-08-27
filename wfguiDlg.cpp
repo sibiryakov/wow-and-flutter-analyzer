@@ -261,6 +261,7 @@ BOOL CWfguiDlg::OnInitDialog()
 	m_filter_combo.AddString("Wow");
 	m_filter_combo.AddString("Flutter");
 	m_filter_combo.SetCurSel(1);
+	SizeComboDropDown(&m_filter_combo, 12);
 	//m_filter_combo.SelectString(-1,"DIN");
 	//m_filter_type = "DIN";
 	m_filter_combo.GetLBText(1, m_filter_type);
@@ -538,6 +539,68 @@ void CWfguiDlg::OnButton2() // START
 	mRes=waveInStart(m_hWaveIn);
 }
 
+// A combo box's height in a dialog template also determines how tall its
+// dropped-down list is, not just the closed control. Template values tuned by
+// eye therefore tend to leave the list a couple of items high -- IDC_DEVICES
+// had room for exactly one, which is why its entries looked missing. Size the
+// list from what it actually contains instead of trusting the template.
+void CWfguiDlg::SizeComboDropDown(CComboBox *pBox, int nMaxVisibleItems)
+{
+	CRect rcCombo;
+	CString csItem;
+	CDC *pDC;
+	CFont *pOldFont;
+	int nCount, nVisible, nItemHeight, nWidth, nT1;
+
+	if(pBox == NULL || pBox->GetSafeHwnd() == NULL)
+		return;
+
+	nCount = pBox->GetCount();
+	if(nCount <= 0)
+		return;
+
+	nVisible = nCount;
+	if((nMaxVisibleItems > 0) && (nVisible > nMaxVisibleItems))
+		nVisible = nMaxVisibleItems;
+
+	nItemHeight = pBox->GetItemHeight(0);
+	if(nItemHeight <= 0)
+		return;
+
+	// Widen the dropped list to its longest entry. Device names such as
+	// "Microphone (2- High Definition Audio Device)" are far wider than the
+	// closed control, and would otherwise be truncated.
+	pDC = pBox->GetDC();
+	if(pDC != NULL)
+	{
+		pOldFont = pDC->SelectObject(pBox->GetFont());
+		nWidth = 0;
+		for(nT1 = 0; nT1 < nCount; ++nT1)
+		{
+			pBox->GetLBText(nT1, csItem);
+			int nItemWidth = pDC->GetTextExtent(csItem).cx;
+			if(nItemWidth > nWidth)
+				nWidth = nItemWidth;
+		}
+		pDC->SelectObject(pOldFont);
+		pBox->ReleaseDC(pDC);
+
+		nWidth += GetSystemMetrics(SM_CXVSCROLL) + 4 * GetSystemMetrics(SM_CXEDGE);
+		pBox->GetWindowRect(&rcCombo);
+		if(nWidth > rcCombo.Width())
+			pBox->SetDroppedWidth(nWidth);
+	}
+
+	// Growing the window height is what actually gives the list room; the
+	// closed control keeps drawing at its own natural height.
+	pBox->GetWindowRect(&rcCombo);
+	ScreenToClient(&rcCombo);
+	pBox->SetWindowPos(NULL, 0, 0,
+		rcCombo.Width(),
+		pBox->GetItemHeight(-1) + nItemHeight * nVisible + 2 * GetSystemMetrics(SM_CYEDGE),
+		SWP_NOMOVE | SWP_NOZORDER | SWP_NOACTIVATE);
+}
+
 int CWfguiDlg::FillDevices(void)
 {
 	CComboBox *pBox=(CComboBox*)GetDlgItem(IDC_DEVICES);
@@ -563,6 +626,8 @@ int CWfguiDlg::FillDevices(void)
 //		else
 //			StoreError(mRes,TRUE,"File: %s ,Line Number:%d",__FILE__,__LINE__);
 	}
+	SizeComboDropDown(pBox, 12);
+
 	if(pBox->GetCount())
 	{
 		pBox->SetCurSel(0);

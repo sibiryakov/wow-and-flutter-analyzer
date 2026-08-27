@@ -98,6 +98,7 @@ public:
 	CString StoreError(MMRESULT mRes,BOOL bDisplay,LPCTSTR lpszFormat, ...);
 	void OpenDevice();
 	UINT GetSelectedDeviceID(void);
+	void SizeComboDropDown(CComboBox *pBox, int nMaxVisibleItems);
 	afx_msg void OnCbnSelchangeDevices();
 	int FillDevices(void);
 	void UnPrepareBuffers(void);
