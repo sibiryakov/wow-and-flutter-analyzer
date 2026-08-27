@@ -97,7 +97,8 @@ public:
 	WAVEFORMATEX m_stWFEX;
 	CString StoreError(MMRESULT mRes,BOOL bDisplay,LPCTSTR lpszFormat, ...);
 	void OpenDevice();
-	void OnCbnSelchangeDevices();
+	UINT GetSelectedDeviceID(void);
+	afx_msg void OnCbnSelchangeDevices();
 	int FillDevices(void);
 	void UnPrepareBuffers(void);
 	afx_msg void OnBnClickedRadio4();

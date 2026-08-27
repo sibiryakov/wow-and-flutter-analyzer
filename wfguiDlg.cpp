@@ -168,6 +168,7 @@ BEGIN_MESSAGE_MAP(CWfguiDlg, CDialog)
 	//}}AFX_MSG_MAP
 	ON_BN_CLICKED(IDC_RADIO4, OnBnClickedRadio4)
 	ON_BN_CLICKED(IDC_RADIO5, OnBnClickedRadio5)
+	ON_CBN_SELCHANGE(IDC_DEVICES, OnCbnSelchangeDevices)
 END_MESSAGE_MAP()
 
 /////////////////////////////////////////////////////////////////////////////
@@ -552,7 +553,13 @@ int CWfguiDlg::FillDevices(void)
 		ZeroMemory(&stWIC,sizeof(WAVEINCAPS));
 		mRes=waveInGetDevCaps(nC1,&stWIC,sizeof(WAVEINCAPS));
 		if(mRes==0)
-			pBox->AddString(stWIC.szPname);
+		{
+			// IDC_DEVICES carries CBS_SORT, so the position an entry ends up
+			// at is not the device ID it came from. Remember the real one.
+			int nIndex=pBox->AddString(stWIC.szPname);
+			if(nIndex>=0)
+				pBox->SetItemData(nIndex,nC1);
+		}
 //		else
 //			StoreError(mRes,TRUE,"File: %s ,Line Number:%d",__FILE__,__LINE__);
 	}
@@ -564,19 +571,30 @@ int CWfguiDlg::FillDevices(void)
 	return nDevices;
 }
 
+UINT CWfguiDlg::GetSelectedDeviceID(void)
+{
+	CComboBox *pDevices=(CComboBox*)GetDlgItem(IDC_DEVICES);
+	int nSel=pDevices->GetCurSel();
+
+	if(nSel==CB_ERR)
+		return WAVE_MAPPER; // nothing selected, let Windows pick the default
+
+	return (UINT)pDevices->GetItemData(nSel);
+}
+
 void CWfguiDlg::OnCbnSelchangeDevices()
 {
 
-	CComboBox *pDevices=(CComboBox*)GetDlgItem(IDC_DEVICES);
 	WAVEINCAPS stWIC={0};
 	MMRESULT mRes;
-	int nSel, res;
+	UINT nDevice;
+	int res;
 
-	nSel=pDevices->GetCurSel();
-	if(nSel!=-1)
+	nDevice=GetSelectedDeviceID();
+	if(nDevice!=WAVE_MAPPER)
 	{
 		ZeroMemory(&stWIC,sizeof(WAVEINCAPS));
-		mRes=waveInGetDevCaps(nSel,&stWIC,sizeof(WAVEINCAPS));
+		mRes=waveInGetDevCaps(nDevice,&stWIC,sizeof(WAVEINCAPS));
 		res = (WAVE_FORMAT_4M16==(stWIC.dwFormats&WAVE_FORMAT_4M16));
 		if(res == 0)
 			AfxMessageBox("Format not supported by device");
@@ -612,7 +630,6 @@ void CWfguiDlg::OpenDevice()
 	int nT1=0;
 	CString csT1;
 	MMRESULT mRes=0;
-	CComboBox *pDevices=(CComboBox*)GetDlgItem(IDC_DEVICES);
 
 	
 	m_stWFEX.nSamplesPerSec=44100;
@@ -625,7 +642,7 @@ void CWfguiDlg::OpenDevice()
 
 
 	mRes=waveInOpen(&m_hWaveIn,
-		pDevices->GetCurSel(),
+		GetSelectedDeviceID(),
 		&m_stWFEX,
 		/*(DWORD_PTR)*/
 #if USE_MESSAGE
