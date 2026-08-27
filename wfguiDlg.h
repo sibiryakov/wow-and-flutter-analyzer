@@ -97,6 +97,7 @@ public:
 	WAVEFORMATEX m_stWFEX;
 	CString StoreError(MMRESULT mRes,BOOL bDisplay,LPCTSTR lpszFormat, ...);
 	void OpenDevice();
+	CString MakeUniqueFileName(LPCTSTR lpszBase, LPCTSTR lpszExt);
 	void OnCbnSelchangeDevices();
 	int FillDevices(void);
 	void UnPrepareBuffers(void);
