@@ -213,6 +213,13 @@ working directory — and are **truncated on every run**
 discriminator output**. That is what makes it valid for the FFT part-identification
 technique regardless of which weighting is selected in the UI.
 
+> **Superseded.** The scaling above is what this analysis found on `master`, and
+> the `// for 1% will be 315` comment does not reconcile with it — 1% of a
+> 158730 ns half period scaled by ten is about 15873. The format was changed to
+> store the measured frequency in Hz as a 32-bit float, which is self-describing
+> and needs no calibration constant. Sample rate and position in the chain are
+> unchanged.
+
 Its sample rate is **one sample per zero crossing = 2 × carrier**: 6000 Hz for a
 3000 Hz tone, 6300 Hz for 3150 Hz. This confirms from source what the thread
 worked out empirically over four years (posts #9–#12, #58–#65); n3mmr's

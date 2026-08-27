@@ -36,9 +36,21 @@ You now have three numbers: **Frequency** (speed), **RMS (%)**, and the needle
 | **Cable** | RCA → 3.5 mm stereo. |
 | **Windows** | Also runs under Wine on Linux/macOS — see [Building & running](#building--running). |
 
-The input format is fixed at 44.1 kHz / 16-bit / **mono**, so only one channel is
-analysed. Your deck must be within **±5% of nominal speed** or the meter will not
-read at all.
+Your deck must be within **±5% of nominal speed** or the meter will not read at
+all.
+
+**Which channel gets measured.** WFGUI asks Windows for a fixed 44.1 kHz /
+16-bit / **mono** stream and does no channel selection or mixing of its own — it
+never sees a stereo signal to choose from. What lands in that mono stream is
+therefore up to your sound card's driver: most commonly the **left** channel,
+though some devices sum left and right instead.
+
+In practice this means **feed the channel you want to measure into the left
+input**. If you need to be sure which one you are getting, play the tape with
+only one channel connected and check that the Frequency box still reads — then
+swap. It matters more than it sounds: a deck can have measurably different W&F
+on its two channels, and summing two channels of an azimuth-misaligned deck can
+partially cancel the very modulation you are trying to measure.
 
 ## What wow & flutter actually is
 
@@ -153,17 +165,31 @@ that drifts as the tape pack changes.
 
 ### Finding the guilty part
 
-Ticking **Save wave** writes `WF_out.dat` — the **raw, unweighted demodulated
-deviation**, written before any weighting filter, so it is valid whatever the
-dropdown says.
+Ticking **Save wave** writes `WF_out.dat`: the **measured frequency of the test
+tone**, one sample per zero crossing, in Hz.
 
 | | |
 |---|---|
-| Format | headerless PCM, signed **16-bit**, **mono**, little-endian |
+| Contents | measured frequency in **Hz** — values sit around 3000 or 3150 |
+| Format | headerless, **32-bit float**, **mono**, little-endian |
 | Sample rate | **2 × carrier** — **6000 Hz** for a 3000 Hz tone, **6300 Hz** for 3150 Hz |
 
+Two properties make this file worth understanding:
+
+- **It is written before the weighting filter.** The contents do not depend on
+  the dropdown — DIN, Wow, Flutter and Unweighted all produce an identical file.
+  That matters, because the weighting curves are deliberately lossy: DIN peaks at
+  4 Hz and rolls off hard either side, and `Wow` discards everything above 6 Hz
+  outright. Analysing a weighted signal would mean hunting for a fault in data
+  that had already thrown the evidence away. Rotating parts turn at whatever rate
+  they turn at, not at perceptually-weighted rates.
+- **The sample rate is tied to the carrier, not to audio.** One sample per zero
+  crossing, and a sine crosses zero twice per cycle — hence 2 × carrier. Set the
+  wrong rate on import and every frequency you read is scaled by the ratio.
+
 Import it into Audacity (File → Import → Raw Data) with those settings and run a
-spectrum analysis. Each peak is a rotating part, and its circumference follows
+spectrum analysis. Samples sit around 3150 rather than around zero, so **remove
+the DC offset first** or ignore the zero bin. Each peak is a rotating part, and its circumference follows
 from the tape speed:
 
 ```
