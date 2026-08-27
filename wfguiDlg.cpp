@@ -44,7 +44,6 @@ double max_RMS[100];
 double max_peak_10sec[100];
 int index_100, index_max_RMS;
 
-int process_sample(void);
 extern "C" {
 	double process_2nd_order(register double val);
 	double process_flutter(register double val);
@@ -322,9 +321,6 @@ HCURSOR CWfguiDlg::OnQueryDragIcon()
 
 
 
-short error_3150;
-
-
 double freq,err1, err2;
 double nanosec_per_sample;
 double sum_of_squares, sum_of_squares1;
@@ -360,13 +356,6 @@ LRESULT CWfguiDlg::OnMyMessage(WPARAM wParam, LPARAM lParam)
 
 
 double proper_interval = 0.5 * 10e8/3150; // half a period of 3150 sampled
-
-int process_sample(void){
-
-      last_val = this_val;
-
-	  return error_3150;
-}
 
 short input_wav[4410]; // 0.1 sec worth of the wave
 int scope_samples;
@@ -758,9 +747,6 @@ void CWfguiDlg::ProcessHeader(WAVEHDR *pHdr)
 			last_val = this_val;
 
 			if(zero_cross){
-				  error_3150 = (short)(10 * (proper_interval - interval));
-				// for 1% will be 315
-
 		
 				if(first_buffer){
 					good_samples = 0;
@@ -769,9 +755,15 @@ void CWfguiDlg::ProcessHeader(WAVEHDR *pHdr)
 				}
   
 				  
-				if(m_savefile)
-					if(outf > 0)
-						fwrite(&error_3150,2,1,outf);
+				// Store the measured frequency in Hz. interval is the length of
+				// one half period in nanoseconds, so a full cycle is twice that.
+				// One float per zero crossing, i.e. a sample rate of twice the
+				// carrier. Written before any weighting filter is applied, so
+				// the file does not depend on the selection in the UI.
+				if(m_savefile && (outf > 0) && (interval > 0.0)){
+					float freq_sample = (float)(1e9 / (2.0 * interval));
+					fwrite(&freq_sample, sizeof(freq_sample), 1, outf);
+				}
 		
 		
 				err = (proper_interval - interval)   / proper_interval; // in %
