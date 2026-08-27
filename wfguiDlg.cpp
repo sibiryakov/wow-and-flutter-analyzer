@@ -323,6 +323,7 @@ HCURSOR CWfguiDlg::OnQueryDragIcon()
 
 
 short error_3150;
+int capture_clipped; // a sample hit the 16 bit limit during this run
 
 
 double freq,err1, err2;
@@ -546,6 +547,7 @@ void CWfguiDlg::OnButton2() // START
 	started = 0; // for discarding a few first points
 	peak = 0.0;
 	max_peak = 0.0;
+	capture_clipped = 0;
 	nanosec_per_sample = 10e8 / 44100;
 
 
@@ -750,7 +752,7 @@ void CWfguiDlg::ProcessHeader(WAVEHDR *pHdr)
 			m_OK_LED.Depress(false);
 			return;
 		}
-		m_status = "";
+		m_status = capture_clipped ? "Capture clipped" : "";
 
 		m_OK_LED.Depress(true);
 
@@ -781,8 +783,31 @@ void CWfguiDlg::ProcessHeader(WAVEHDR *pHdr)
 			last_val = this_val;
 
 			if(zero_cross){
-				  error_3150 = (short)(10 * (proper_interval - interval));
-				// for 1% will be 315
+				  // One count is 0.1 ns of half period error, so at 3150 Hz 1%
+				  // is about 15873 counts. An older comment here read "for 1%
+				  // will be 315", which would only be right if the unit were
+				  // tenths of a Hz of frequency deviation rather than of
+				  // half period error.
+				  //
+				  // A short saturates around +/-2% of nominal speed while the
+				  // frequency gate above accepts +/-5%, so a deck running 2-5%
+				  // off used to wrap the cast and fill the capture with values
+				  // that looked like real signal. Clamp instead: a railed
+				  // capture is visibly broken, a wrapped one is not.
+				  {
+					  double scaled = 10.0 * (proper_interval - interval);
+
+					  if(scaled > 32767.0){
+						  scaled = 32767.0;
+						  if(m_savefile)
+							  capture_clipped = 1;
+					  } else if(scaled < -32768.0){
+						  scaled = -32768.0;
+						  if(m_savefile)
+							  capture_clipped = 1;
+					  }
+					  error_3150 = (short)scaled;
+				  }
 
 		
 				if(first_buffer){
