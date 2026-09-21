@@ -13,3 +13,13 @@ Release/
 *.lib
 *.exp
 *.aps
+
+# Local environment / OS cruft
+.env
+.DS_Store
+
+# Reference material and scraping working directories (not redistributable)
+*.pdf
+.scrape/
+tapeheads_wfgui_thread/
+tapeheads-wfgui-thread-archive/
